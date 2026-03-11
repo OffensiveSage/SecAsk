@@ -19,10 +19,10 @@ export function IndexingProgress({
 
   return (
     <div style={{
-      border: "2px solid #0a0a0a",
+      border: "2.5px solid var(--border-black)",
       padding: "24px 28px",
-      boxShadow: "4px 4px 0 #0a0a0a",
-      background: "#fff",
+      boxShadow: "var(--shadow-layer-1)",
+      background: "var(--bg-paper)",
       borderRadius: 0,
       width: "100%",
       maxWidth: 480,
@@ -51,8 +51,8 @@ export function IndexingProgress({
       {/* Progress bar */}
       <div style={{
         height: 6,
-        background: "#e5e5e5",
-        border: "1px solid #ccc",
+        background: "var(--bg-paper-alt)",
+        border: "1.5px solid var(--border-subtle)",
         borderRadius: 0,
         overflow: "hidden",
         marginBottom: 14,

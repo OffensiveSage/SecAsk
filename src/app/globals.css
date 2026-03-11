@@ -1886,3 +1886,128 @@ header a[href="/"]:hover {
 
 .thinking-row--variant .thinking-row-tag  { opacity: 0.7; color: var(--info-slate); }
 .thinking-row--variant .thinking-row-text { color: var(--ink-medium); }
+
+/* ==========================================
+   Section 4 — Page Layouts & Components
+   ========================================== */
+
+/* Paper card base */
+.paper-card {
+  background: var(--bg-paper);
+  border: 2.5px solid var(--border-black);
+  box-shadow: var(--shadow-layer-1);
+  padding: 20px;
+  border-radius: 2px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* Hero card with double-stack pseudo effect */
+.paper-card-hero {
+  background: var(--bg-paper);
+  border: 2.5px solid var(--border-black);
+  box-shadow: var(--shadow-layer-2);
+  padding: 48px 40px;
+  border-radius: 2px;
+  position: relative;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+}
+.paper-card-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2.5px solid var(--border-black);
+  transform: translate(4px, 4px);
+  z-index: -1;
+  background: var(--bg-paper-alt);
+  border-radius: 2px;
+}
+.paper-card-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2.5px solid var(--border-black);
+  transform: translate(8px, 8px);
+  z-index: -2;
+  background: var(--bg-cream);
+  border-radius: 2px;
+}
+
+/* Section heading with flanking rules */
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.section-heading::before,
+.section-heading::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  background: var(--border-black);
+}
+.section-heading span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-medium);
+  white-space: nowrap;
+}
+
+/* Source grid */
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Source card extras */
+.source-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Example query chips */
+.query-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border: 2px solid var(--border-black);
+  background: var(--bg-paper);
+  color: var(--ink-black);
+  box-shadow: var(--shadow-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  border-radius: 2px;
+}
+.query-chip:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-layer-1);
+}
+
+/* Toast base (used as fallback if not using Framer Motion) */
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--bg-paper);
+  border: 2.5px solid var(--border-black);
+  box-shadow: 5px 5px 0px var(--ink-black);
+  padding: 12px 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-black);
+  letter-spacing: 0.02em;
+  animation: slide-up 0.2s ease;
+  border-radius: 2px;
+}
