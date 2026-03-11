@@ -1,20 +1,22 @@
 "use client";
 
 const STARTER_SUGGESTIONS = [
-	"What ATT&CK techniques use PowerShell?",
-	"Show Sigma rules for lateral movement",
-	"Does CVE-2024-3400 have detection coverage?",
-	"Map NIST AC-2 account management controls",
-	"Find authentication vulnerabilities in this code",
+	"Find security vulnerabilities in this code",
+	"Check for hardcoded secrets or API keys",
+	"What authentication mechanism is used?",
+	"Trace how user input flows through the app",
+	"What external dependencies are used?",
 ];
 
 interface EmptyChatProps {
 	owner: string;
 	repo: string;
 	onSelectSuggestion: (text: string) => void;
+	suggestions?: string[];
 }
 
-export function EmptyChat({ owner, repo, onSelectSuggestion }: EmptyChatProps) {
+export function EmptyChat({ owner, repo, onSelectSuggestion, suggestions }: EmptyChatProps) {
+	const displayed = suggestions && suggestions.length > 0 ? suggestions : STARTER_SUGGESTIONS;
 	return (
 		<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 24, textAlign: "center", background: "transparent" }}>
 			<div>
@@ -26,7 +28,7 @@ export function EmptyChat({ owner, repo, onSelectSuggestion }: EmptyChatProps) {
 				</h2>
 			</div>
 			<div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center", maxWidth: 560 }}>
-				{STARTER_SUGGESTIONS.map(suggestion => (
+				{displayed.map(suggestion => (
 					<button
 						key={suggestion}
 						onClick={() => onSelectSuggestion(suggestion)}

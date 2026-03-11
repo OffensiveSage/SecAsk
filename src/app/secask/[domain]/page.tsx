@@ -21,6 +21,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { VectorStore } from "@/lib/vectorStore";
 import { multiPathHybridSearch } from "@/lib/search";
@@ -183,7 +184,10 @@ function CitationChip({
 	const colors = DOMAIN_CHIP_COLORS[domain] ?? DOMAIN_CHIP_COLORS.custom;
 	const label = filePath.split("/").pop() ?? filePath;
 	return (
-		<span
+		<motion.span
+			initial={{ opacity: 0, scale: 0.85 }}
+			animate={{ opacity: 1, scale: 1 }}
+			transition={{ duration: 0.2 }}
 			style={{
 				display: "inline-flex",
 				alignItems: "center",
@@ -204,7 +208,7 @@ function CitationChip({
 			onClick={onClick}
 		>
 			↑ {label}
-		</span>
+		</motion.span>
 	);
 }
 
@@ -342,17 +346,22 @@ function MessageBubble({
 	isLast,
 	usedMode,
 	onOpenContext,
+	isMobile,
 }: {
 	msg: Message;
 	isLast: boolean;
 	usedMode?: SecurityMode;
 	onOpenContext?: () => void;
+	isMobile?: boolean;
 }) {
 	const isUser = msg.role === "user";
 	const isThinking = isLast && !isUser && msg.content === "";
 
 	return (
-		<div
+		<motion.div
+			initial={{ opacity: 0, y: 10 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
 			style={{
 				display: "flex",
 				flexDirection: "column",
@@ -395,7 +404,7 @@ function MessageBubble({
 			{/* Bubble */}
 			<div
 				style={{
-					maxWidth: "80%",
+					maxWidth: isMobile ? "100%" : "80%",
 					background: isUser ? "var(--bg-paper-alt)" : "var(--bg-paper)",
 					border: "2px solid var(--border-black)",
 					borderRadius: 2,
@@ -423,7 +432,7 @@ function MessageBubble({
 
 			{/* Citations */}
 			{msg.citations && msg.citations.length > 0 && (
-				<div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: "80%" }}>
+				<div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: isMobile ? "100%" : "80%" }}>
 					{msg.citations.slice(0, 6).map((c, i) => (
 						<CitationChip
 							key={i}
@@ -434,7 +443,7 @@ function MessageBubble({
 					))}
 				</div>
 			)}
-		</div>
+		</motion.div>
 	);
 }
 
@@ -474,6 +483,11 @@ export default function SecurityDomainPage({
 		() => getLLMConfig().provider !== "mlc"
 	);
 
+	// Mobile / UI state
+	const [isMobile, setIsMobile] = useState(false);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [indexJustCompleted, setIndexJustCompleted] = useState(false);
+
 	// Mode state
 	const [detectedMode, setDetectedMode] = useState<SecurityMode>("cross-domain");
 	const [modeOverride, setModeOverride] = useState<SecurityMode | null>(null);
@@ -494,6 +508,19 @@ export default function SecurityDomainPage({
 	useEffect(() => {
 		params.then((p) => setDomain(p.domain));
 	}, [params]);
+
+	// Mobile detection
+	useEffect(() => {
+		const check = () => setIsMobile(window.innerWidth < 768);
+		check();
+		window.addEventListener("resize", check);
+		return () => window.removeEventListener("resize", check);
+	}, []);
+
+	// Close sidebar when generating
+	useEffect(() => {
+		if (isGenerating) setSidebarOpen(false);
+	}, [isGenerating]);
 
 	// LLM status sync
 	useEffect(() => {
@@ -636,6 +663,15 @@ export default function SecurityDomainPage({
 
 		(async () => {
 			try {
+				// Storage availability check
+				if (typeof navigator !== "undefined" && navigator.storage?.estimate) {
+					const est = await navigator.storage.estimate();
+					const availMB = ((est.quota ?? 0) - (est.usage ?? 0)) / (1024 * 1024);
+					if (availMB < 50) {
+						setToastMessage(`Warning: Only ${Math.round(availMB)}MB browser storage remaining. Indexing may fail.`);
+					}
+				}
+
 				const store = storeRef.current;
 
 				switch (domain) {
@@ -662,6 +698,8 @@ export default function SecurityDomainPage({
 
 				if (aborted) return;
 				setIsIndexed(true);
+				setIndexJustCompleted(true);
+				setTimeout(() => setIndexJustCompleted(false), 1200);
 
 				initLLM((msg) => {
 					if (aborted) return;
@@ -901,7 +939,7 @@ export default function SecurityDomainPage({
 							: {
 								...m,
 								content:
-									"I can't find sufficient grounded evidence in the indexed data for this request. Try re-phrasing with more specific terms.",
+									"I can't find sufficient grounded evidence in the indexed data for this request. Try re-phrasing with more specific terms, or [index more sources](/) to broaden coverage.",
 								citations: citations.length > 0 ? citations : undefined,
 							}
 					)
@@ -1157,6 +1195,24 @@ export default function SecurityDomainPage({
 				}}
 			>
 				<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+					{/* Mobile hamburger */}
+					{isMobile && (
+						<button
+							onClick={() => setSidebarOpen((v) => !v)}
+							aria-label="Toggle chat sessions"
+							style={{
+								background: "none",
+								border: "1.5px solid var(--border-black)",
+								padding: "4px 8px",
+								fontSize: "1rem",
+								cursor: "pointer",
+								lineHeight: 1,
+								minHeight: 32,
+							}}
+						>
+							☰
+						</button>
+					)}
 					<button
 						onClick={() => router.push("/")}
 						style={{
@@ -1175,7 +1231,9 @@ export default function SecurityDomainPage({
 						SecAsk
 					</button>
 					<span style={{ color: "var(--ink-light)" }}>/</span>
-					<span className={`tag ${meta.tagClass}`}>{meta.tag}</span>
+					<span className={`tag ${meta.tagClass}${indexJustCompleted ? " index-complete-flash" : ""}`}>
+						{meta.tag}
+					</span>
 					<span
 						style={{
 							fontFamily: "var(--font-display)",
@@ -1264,8 +1322,33 @@ export default function SecurityDomainPage({
 			<div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
 				{/* ── Sidebar ── */}
+				{/* Desktop sidebar (always visible) / Mobile overlay (when sidebarOpen) */}
+				{(sidebarOpen && isMobile) && (
+					<div
+						onClick={() => setSidebarOpen(false)}
+						style={{
+							position: "fixed",
+							inset: 0,
+							background: "rgba(26,26,26,0.35)",
+							zIndex: 190,
+						}}
+					/>
+				)}
 				<div
-					style={{
+					style={isMobile ? {
+						position: "fixed",
+						top: 0,
+						left: 0,
+						width: 280,
+						height: "100%",
+						zIndex: 200,
+						background: "var(--bg-paper)",
+						borderRight: "2.5px solid var(--border-black)",
+						display: sidebarOpen ? "flex" : "none",
+						flexDirection: "column",
+						overflow: "hidden",
+						boxShadow: "var(--shadow-layer-3)",
+					} : {
 						width: 220,
 						flexShrink: 0,
 						borderRight: "2.5px solid var(--border-black)",
@@ -1442,6 +1525,7 @@ export default function SecurityDomainPage({
 									isLast={idx === messages.length - 1}
 									usedMode={msg.role === "assistant" ? activeMode : undefined}
 									onOpenContext={() => setShowContext(true)}
+									isMobile={isMobile}
 								/>
 							))}
 							<div ref={chatEndRef} />
@@ -1460,7 +1544,8 @@ export default function SecurityDomainPage({
 							<form
 								onSubmit={(e) => { e.preventDefault(); handleSend(); }}
 								style={{
-									padding: "14px 20px 8px",
+									padding: "14px 20px",
+									paddingBottom: "max(8px, env(safe-area-inset-bottom))",
 									display: "flex",
 									gap: 10,
 									alignItems: "flex-end",
@@ -1525,7 +1610,20 @@ export default function SecurityDomainPage({
 				{/* Context panel (slide-in) */}
 				{showContext && isIndexed && contextChunks.length > 0 && (
 					<div
-						style={{
+						style={isMobile ? {
+							position: "fixed",
+							bottom: 0,
+							left: 0,
+							right: 0,
+							height: "70vh",
+							zIndex: 100,
+							background: "var(--bg-paper)",
+							borderTop: "2.5px solid var(--border-black)",
+							boxShadow: "var(--shadow-layer-2)",
+							display: "flex",
+							flexDirection: "column",
+							overflow: "hidden",
+						} : {
 							width: 340,
 							flexShrink: 0,
 							borderLeft: "2.5px solid var(--border-black)",

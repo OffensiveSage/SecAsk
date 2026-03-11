@@ -1,168 +1,230 @@
 <div align="center">
 
-# GitAsk
+# SecAsk
 
-**turn any github repo into an AI you can talk to, right in your browser. no server. no API key. no cloud.**
+**Ask your security stack anything.**
 
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-[![WebGPU](https://img.shields.io/badge/WebGPU-enabled-orange?style=flat-square)](https://developer.chrome.com/docs/web-platform/webgpu)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](./LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/FloareDor/gitask/pulls)
+Browser-native RAG for MITRE ATT&CK, Sigma rules, CVEs, NIST 800-53, and your own docs.
+Cross-domain retrieval. No server. No cloud. Everything runs in your tab.
+
+---
+
+[Quick Start](#quick-start) · [Data Sources](#data-sources) · [How It Works](#how-it-works) · [Stack](#stack) · [Contributing](#contributing)
 
 </div>
 
 ---
 
-paste a github URL. ask a question. get an answer grounded in the actual code.
+## What is SecAsk?
 
-no API key setup. no docker. no postgres. no cloud bill. the model runs on your GPU, the index lives in your browser, and nothing leaves your machine (unless you want it to).
+SecAsk is a local-first security knowledge platform. You pick a data source — MITRE ATT&CK, a Sigma rule corpus, recent CVEs, NIST 800-53 controls, or files you upload yourself — and it indexes everything directly in your browser using WebGPU-accelerated embeddings. Then you chat against it.
 
-it started as a toy to see if I can make a basic offline RAG system for code. it ended up being the way I actually explore unfamiliar repos.
+No data ever leaves your machine. No API key required to get started (bring your own for cloud LLMs, or run a model locally with WebLLM). Indexes are cached in IndexedDB so subsequent loads are instant.
 
----
-
-## demo
-
-<div align="center">
-  <a href="https://drive.google.com/file/d/1I91z52aV2g4xpZOWVt_rIryyLjfDWzWm/view?usp=sharing">
-    <img src="assets/gitask-demo-poster.png" alt="GitAsk demo video preview" width="800" />
-  </a>
-</div>
-
-watch the walkthrough:
-[gitask autoresearch music demo](https://drive.google.com/file/d/1I91z52aV2g4xpZOWVt_rIryyLjfDWzWm/view?usp=sharing)
+It's built for detection engineers, threat hunters, vulnerability analysts, and compliance teams who want to ask natural-language questions across security knowledge bases without wiring up a server.
 
 ---
 
-## how it works
+## Data Sources
 
-<div align="center">
-  <img src="assets/diagram.gif" alt="gitask architecture - ingestion pipeline and query-time retrieval" width="800" />
-</div>
+| Source | Route | What gets indexed |
+|--------|-------|-------------------|
+| **MITRE ATT&CK** | `/secask/attack` | All techniques, sub-techniques, tactics, threat groups, software, mitigations — from the official STIX bundle |
+| **Sigma Rules** | `/secask/sigma` | Community detection rules from SigmaHQ (Windows, Linux, Cloud, Network) with ATT&CK tag mapping |
+| **NVD / CVEs** | `/secask/nvd` | Recent CVEs from the NIST NVD API — CVSS v3 scores, CWE references, affected products |
+| **NIST 800-53** | `/secask/nist` | All control families across LOW / MODERATE / HIGH baselines, control enhancements, supplemental guidance |
+| **Custom Upload** | `/secask/custom` | Your own TXT, MD, JSON, YAML, or PDF files — pentest reports, runbooks, policies, anything |
 
-### ingestion
-
-1. **github fetch** - pulls the full file tree in one API call, then fetches files on-demand.
-2. **AST chunking** - tree-sitter WASM parses your source and cuts at real boundaries: functions, classes, methods. not arbitrary line counts. supports JS/TS/TSX, Python, Rust, Go, Java, C/C++, and more. falls back to text splitting for everything else.
-3. **embedding** - `all-MiniLM-L12-v2` via `@huggingface/transformers`, running on WebGPU if available, WASM otherwise. adaptive batch sizing squeezes out throughput.
-4. **binary quantization** - float32 embeddings are sign-bit packed into `Uint32Array`s. 32x smaller in memory. hamming distance runs fast even on large repos.
-5. **persistence** - everything lives in IndexedDB via entity-db. re-open the tab, the index is still there.
-
-### retrieval
-
-this is the part that actually makes answers good.
-
-- **multi-query expansion** - your question gets expanded into two variants: the raw question, and a code-symbol-focused version. catches things a single-query approach misses.
-- **hybrid search** - dense retrieval (hamming distance on binary embeddings) fused with BM25 sparse search. neither one alone is enough.
-- **RRF** - reciprocal rank fusion merges the ranked lists from each query/retriever into one signal.
-- **graph expansion** - the import/definition graph lets retrieval hop from a file to its dependencies when the chunk boundary cuts off relevant context.
-- **cosine rerank** - the coarse RRF candidates get reranked with full cosine similarity before being handed to the LLM.
-
-### generation
-
-- **WebLLM** - Qwen2-0.5B runs entirely in your browser via `@mlc-ai/web-llm`. first load takes a few minutes (model download), then it's cached.
-- **CoVe loop** - after generating an answer, the model extracts its own claims and verifies each one against the vector store. wrong claims get corrected. it's one pass of chain-of-verification, tuned for a small model.
-- **BYOK** - if you'd rather use Gemini or Groq, you can. keys are encrypted in a local vault and never leave your device.
+> **First-time indexing** downloads public data directly in your browser (~15–80 MB depending on source). Subsequent loads are served from the local IndexedDB cache.
 
 ---
 
-## quick start
+## What You Can Ask
+
+```
+"What ATT&CK techniques are used by APT29?"
+"Show me Sigma rules that cover T1059.001 PowerShell execution"
+"What critical CVEs affect Apache HTTP Server in the last 6 months?"
+"Map NIST AC-2 to the relevant ATT&CK mitigations"
+"Which detection rules in the index have no ATT&CK coverage?"
+"What does control IA-5 require at the HIGH baseline?"
+"Find all techniques in my uploaded threat model that overlap with indexed Sigma rules"
+```
+
+SecAsk will search across all indexed sources in a single query, automatically correlate ATT&CK IDs ↔ Sigma tags ↔ CVE references ↔ NIST controls, and ground every answer in citations back to the source chunks.
+
+---
+
+## Analyst Modes
+
+SecAsk detects the right mode from your query automatically, or you can pin one manually from the input bar:
+
+| Mode | Best for |
+|------|----------|
+| **Threat Hunt** | TTP lookups, adversary profiling, technique enumeration |
+| **Detection** | Sigma rule coverage, detection gap analysis, rule quality |
+| **Vuln Analysis** | CVE triage, CVSS scoring, patch prioritization, exposure scope |
+| **Compliance** | NIST control mapping, baseline gaps, audit evidence |
+| **Cross-Domain** | Questions that span multiple sources — the default |
+
+---
+
+## Quick Start
 
 ```bash
+git clone <repo-url>
+cd SecAsk
 npm install
 npm run dev
 ```
 
-open `http://localhost:3000`, paste a github URL, and start asking.
+Open [http://localhost:3000](http://localhost:3000).
 
-that's the whole setup.
+1. Click a source card (start with **ATT&CK** or **NIST** — they index fastest)
+2. Wait for the progress bar to complete — this embeds the data locally
+3. Start asking questions in natural language
+4. Click **CONTEXT** in the header to see the raw chunks retrieved for any answer
 
-Local note: this repo uses `webpack` for `npm run dev` because the `[owner]/[repo]`
-route currently hangs under Turbopack on some local machines.
-
----
-
-## stack
-
-| layer | what |
-|---|---|
-| framework | Next.js 16 + React 19 |
-| LLM (local) | `@mlc-ai/web-llm` - Qwen2-0.5B on WebGPU |
-| embeddings | `@huggingface/transformers` - all-MiniLM-L12-v2 |
-| AST parsing | `web-tree-sitter` (WASM) |
-| vector store | `@babycommando/entity-db` -> IndexedDB |
-| cloud LLM (optional) | Gemini, Groq via BYOK vault |
-| UI | Framer Motion, React Markdown, syntax highlighting |
+To use a cloud LLM (faster, better reasoning), open **LLM Settings** and paste a Gemini or Groq API key. Keys are encrypted and never leave your browser.
 
 ---
 
-## features
+## How It Works
 
-- **zero backend** - the entire pipeline runs in-browser
-- **WebGPU inference** with WASM fallback - works on most modern machines
-- **AST-aware chunking** - chunks respect code structure, not just line counts
-- **binary quantization** - 32x memory savings on the embedding index
-- **hybrid search** - dense + sparse, fused with RRF
-- **multi-query expansion** - CodeRAG-style, catches what single queries miss
-- **dependency graph traversal** - retrieval follows imports to surface related code
-- **CoVe self-correction** - the model checks its own answers against the codebase
-- **persistent index** - close the tab, reopen, resume chatting
-- **BYOK** - swap in Gemini or Groq if you want a bigger model
-- **multi-session chat** - multiple chat histories per repo
+```
+Your query
+     │
+     ▼  Security query expansion
+     │  Generate 3–5 semantic variants (e.g. "T1059" → ["PowerShell execution",
+     │  "script interpreter abuse", "command-line interface", ...])
+     │
+     ▼  Multi-path hybrid search
+     │  Vector similarity (all-MiniLM-L6-v2) + keyword BM25 across all variants
+     │
+     ▼  Cross-domain expansion
+     │  Parse ATT&CK IDs, Sigma tags, NIST controls from top chunks
+     │  Run a second-pass search to pull correlated chunks from other sources
+     │
+     ▼  Retrieval refinement  (cloud LLMs only)
+     │  Re-rank results with a fast LLM call before final assembly
+     │
+     ▼  Safety scan
+     │  Detect prompt injection in retrieved chunks
+     │  Evaluate evidence coverage — block if grounding is too weak
+     │
+     ▼  Context assembly + analyst-mode prompt
+     │  Trim to token budget, inject system prompt tuned for active mode
+     │
+     ▼  LLM generation
+     │  Stream tokens from WebLLM (local) or Gemini / Groq (BYOK)
+     │
+     ▼  Citation correlation
+        Ground the response back to source chunks
+        Show citation chips with domain color coding
+```
 
----
-
-## why not just use an existing tool?
-
-most code-search tools either require a cloud backend, or they do naive chunking that cuts functions in half. I wanted something that:
-
-1. runs completely locally
-2. understands code structure (AST chunks)
-3. retrieves well (hybrid search + RRF, not just cosine similarity)
-4. is actually fast to set up (paste URL, done)
-
-this is the thing I built to scratch that itch.
-
----
-
-## research
-
-the retrieval design draws from two papers:
-
-- **CodeRAG** - Zhang et al., *Finding Relevant and Necessary Knowledge for Retrieval-Augmented Repository-Level Code Completion*, EMNLP 2025. [arXiv:2509.16112](https://arxiv.org/abs/2509.16112)
-  -> multi-query expansion, hybrid retrieval, RRF fusion
-
-- **CoVe** - Dhuliawala et al., *Chain-of-Verification Reduces Hallucination in Large Language Models*, Findings of ACL 2024. [arXiv:2309.11495](https://arxiv.org/abs/2309.11495)
-  -> self-verification loop on generated answers
+Everything from embedding to generation runs **in the browser tab** — no requests to any backend.
 
 ---
 
-## star history
+## Stack
 
-<a href="https://www.star-history.com/?repos=FloareDor%2Fgitask&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=FloareDor/gitask&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=FloareDor/gitask&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=FloareDor/gitask&type=date&legend=top-left" />
- </picture>
-</a>
-
----
-
-## acknowledgments
-
-shoutout to [CosmoBean](https://github.com/CosmoBean) for shipping a ridiculous number of PRs on this. BM25, prompt injection guards, chunking perf, metrics, embeddings - a lot of the good stuff in here is his. he's my roommate and he just kept opening pull requests. genuinely made this project way better than it would've been.
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16 · React 19 |
+| Language | TypeScript |
+| Embeddings | `@huggingface/transformers` — `all-MiniLM-L6-v2` via WebGPU / WASM fallback |
+| Local LLM | `@mlc-ai/web-llm` — Llama, Qwen, Phi quantized models in-browser |
+| Cloud LLM | Gemini API · Groq API — BYOK, keys stored via `byok-vault` (never sent anywhere) |
+| Vector Store | Custom in-memory store + IndexedDB persistence via `entity-db` |
+| Styling | Pure CSS · CSS variables · Papercut Layers design system · no Tailwind |
+| Animations | Framer Motion |
+| Icons | lucide-react |
 
 ---
 
-## contributing
+## Design System
 
-issues and PRs are welcome. if something doesn't work on your machine, open an issue with your browser + GPU info. browser ML is still a mess and edge cases are rreal.
+**Papercut Layers** — warm cream, hard ink shadows, sharp edges. Looks like something printed.
+
+```
+Background  #F5F0E8  — aged cream
+Paper       #FFFDF7  — off-white card surfaces
+Ink         #1A1A1A  — near-black text and borders
+Accent      #5B7FA5  — info slate (links, metadata)
+
+Shadows     3px 3px 0px #1A1A1A  — no blur, stacked layers
+Radius      max 2px everywhere   — paper doesn't have soft corners
+Fonts       Archivo Black (headings) · DM Sans (body) · JetBrains Mono (code)
+```
+
+No dark mode. Intentional — you should be able to read it in daylight.
 
 ---
 
-## license
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── page.tsx                    # Landing page — source cards + hero
+│   ├── secask/[domain]/page.tsx    # Chat interface for each security source
+│   └── globals.css                 # Full design system (~2000 lines)
+├── components/
+│   ├── SourceCard.tsx              # Landing source connector card
+│   ├── ToastNotification.tsx       # Auto-dismiss toast
+│   └── chat/                       # IndexingOverlay + shared chat components
+└── lib/
+    ├── connectors/                 # attack.ts · sigma.ts · nvd.ts · nist.ts · upload.ts
+    ├── vectorStore.ts              # In-memory vector store + IndexedDB cache
+    ├── search.ts                   # Multi-path hybrid search
+    ├── securityModes.ts            # Analyst mode detection + system prompts
+    ├── citationUtils.ts            # Grounded citation extraction
+    ├── promptSafety.ts             # Injection scan + evidence coverage
+    └── llm.ts                      # WebLLM + Gemini + Groq unified interface
+```
+
+---
+
+## Adding a New Source
+
+Each connector implements a simple interface:
+
+```typescript
+// src/lib/connectors/yourSource.ts
+export async function indexYourSource(
+  store: VectorStore,
+  progress: (p: ConnectorProgress) => void,
+  signal: AbortSignal
+): Promise<void> {
+  // 1. Fetch or receive data
+  // 2. Chunk it
+  // 3. Call store.addChunks(chunks) — embeddings happen automatically
+}
+```
+
+Then add a route in `DOMAIN_META` inside `secask/[domain]/page.tsx` and a card on the landing page. That's it.
+
+---
+
+## Acknowledgments
+
+- [MITRE ATT&CK®](https://attack.mitre.org) — adversary tactics and techniques
+- [SigmaHQ](https://github.com/SigmaHQ/sigma) — open community detection rules
+- [NIST NVD](https://nvd.nist.gov) — National Vulnerability Database API
+- [NIST SP 800-53](https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final) — security and privacy controls
+- [GitAsk](https://github.com/babycommando/gitask) — the browser-native RAG foundation this is forked from
+
+---
+
+## Contributing
+
+PRs and issues welcome. The connector pattern is designed to be extended — the hardest part of adding a new source is usually deciding how to chunk the data.
+
+If you find a retrieval quality issue, open an issue with the query and what you expected. Cross-domain correlation is the trickiest part and always has room to improve.
+
+---
+
+## License
 
 MIT

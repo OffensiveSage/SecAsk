@@ -26,6 +26,7 @@ import {
 	buildCorrelatedCitationResults, evaluateEvidenceCoverage,
 } from "@/lib/citationUtils";
 import { shouldInjectBaselineContext, isFactSeekingQuery } from "@/lib/queryUtils";
+import { deriveRepoSuggestions } from "@/lib/repoSuggestions";
 
 import { RepoHeader } from "@/components/chat/RepoHeader";
 import { DiagramModal } from "@/components/diagram/DiagramModal";
@@ -95,6 +96,7 @@ export default function RepoPage({
 	const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
 	const [fileBrowserTab, setFileBrowserTab] = useState<"tree" | "chunks">("tree");
 	const [showDiagram, setShowDiagram] = useState(false);
+	const [repoSuggestions, setRepoSuggestions] = useState<string[]>([]);
 
 	const completedWhileHiddenRef = useRef(false);
 	const indexStartTimeRef = useRef<number | null>(null);

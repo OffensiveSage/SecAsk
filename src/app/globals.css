@@ -2011,3 +2011,57 @@ header a[href="/"]:hover {
   animation: slide-up 0.2s ease;
   border-radius: 2px;
 }
+
+/* ─── Indexing completion flash ───────────────────────────────────────────── */
+
+@keyframes index-flash {
+  0% { background-color: #C8E6C9; }
+  100% { background-color: inherit; }
+}
+.index-complete-flash {
+  animation: index-flash 1.2s ease forwards;
+}
+
+/* ─── Mobile Breakpoints ───────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  :root {
+    --shadow-layer-1: 2px 2px 0px #1A1A1A;
+    --shadow-layer-2: 3px 3px 0px #1A1A1A;
+    --shadow-layer-3: 4px 4px 0px #1A1A1A;
+  }
+
+  /* Reduce hero padding on mobile */
+  .paper-card-hero { padding: 32px 20px; }
+
+  /* Full-width chat bubbles on mobile */
+  .chat-bubble--user,
+  .chat-bubble--assistant { max-width: 100% !important; }
+
+  /* Touch target minimum 44px */
+  button, .btn-primary, .btn-secondary, .btn-ghost {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent horizontal overflow */
+  body { overflow-x: hidden; }
+  * { max-width: 100vw; box-sizing: border-box; }
+
+  /* Source cards full-width on mobile */
+  .source-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Landing hero font scale */
+  .hero-title {
+    font-size: clamp(2rem, 8vw, 3rem) !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* Tablet: 2-column source grid */
+  .source-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
