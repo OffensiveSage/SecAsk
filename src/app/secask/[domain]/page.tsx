@@ -25,11 +25,21 @@ import ReactMarkdown from "react-markdown";
 import { VectorStore } from "@/lib/vectorStore";
 import { multiPathHybridSearch } from "@/lib/search";
 import {
-	generateQueryVariants,
 	getRetrievalRefinement,
 	buildContextualQuery,
-	expandQuery,
 } from "@/lib/queryExpansion";
+import {
+	generateSecurityQueryVariants,
+	expandSecurityQuery,
+} from "@/lib/securityQueryExpansion";
+import {
+	selectMode,
+	DOMAIN_DEFAULT_MODE,
+	SECURITY_MODE_PROMPTS,
+	MODE_META,
+	ALL_MODES,
+	type SecurityMode,
+} from "@/lib/securityModes";
 import { defaultLimitsForProvider } from "@/lib/contextAssembly";
 import {
 	initLLM,
@@ -136,56 +146,6 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 	},
 };
 
-const SECURITY_SYSTEM_PROMPTS: Record<string, string> = {
-	attack: `You are a threat intelligence analyst with access to the MITRE ATT&CK Enterprise knowledge base.
-When answering:
-- Cite specific ATT&CK technique IDs (T-IDs) and tactic names for every claim.
-- Map behaviors to ATT&CK techniques precisely — prefer sub-techniques when available.
-- Identify potential threat groups or software based on technique overlap when relevant.
-- Reference mitigation IDs (M-IDs) and data source IDs when suggesting defenses.
-- Label each claim with its ATT&CK object type: [Technique], [Group], [Software], [Mitigation], [Data Source].
-- If the indexed data does not cover a topic, say so clearly.`,
-
-	sigma: `You are a detection engineer with access to the SigmaHQ rule repository.
-When answering:
-- Cite Sigma rule titles, IDs, and severity levels for every claim.
-- Map detection rules to ATT&CK techniques using the rule tags.
-- Identify detection gaps — techniques or behaviors that have no indexed Sigma rule.
-- Reference log source product and service fields when relevant.
-- Suggest new detection logic in Sigma YAML format when asked.
-- Label each claim: [Sigma Rule], [ATT&CK], [Log Source].
-- If detection coverage is missing, say so clearly.`,
-
-	nvd: `You are a vulnerability analyst with access to NVD CVE data.
-When answering:
-- Cite specific CVE IDs and CVSS scores (version, score, severity) for every claim.
-- Reference affected products using CPE strings when available.
-- Mention CWE weakness classifications to explain vulnerability categories.
-- Note exploitability and impact subscores when discussing risk.
-- Prioritize by severity: CRITICAL > HIGH > MEDIUM > LOW.
-- Label each claim: [CVE], [CVSS], [CPE], [CWE].
-- If CVE data is not in the indexed range, say so clearly.`,
-
-	nist: `You are a GRC analyst with access to NIST SP 800-53 Rev 5 controls.
-When answering:
-- Cite specific control IDs (e.g., AC-2, AU-6(1)) and control family names for every claim.
-- Reference applicable baselines (LOW, MODERATE, HIGH) and priority levels.
-- Cross-reference related controls using the control's related-controls links.
-- Suggest implementation guidance based on the control statement and supplemental guidance.
-- Distinguish base controls from enhancements (indicated by parenthetical numbers).
-- Label each claim: [Control], [Enhancement], [Family], [Baseline].
-- If the control is not in the NIST 800-53 catalog, say so clearly.`,
-
-	custom: `You are a security analyst with access to custom uploaded documents.
-When answering:
-- Cite the specific document name and section for every claim.
-- Distinguish between what is explicitly stated vs. inferred from context.
-- Note any gaps or areas not covered by the uploaded content.
-- If documents contain policies, procedures, or technical specifications, reference them precisely.
-- Label each claim with the source document.
-- If the information is not in the uploaded content, say so clearly.`,
-};
-
 // Connector progress → IndexProgress shape cast
 function toIndexProgress(p: ConnectorProgress): IndexProgress {
 	return {
@@ -196,10 +156,31 @@ function toIndexProgress(p: ConnectorProgress): IndexProgress {
 	};
 }
 
+// ─── Domain color map for citation chips ─────────────────────────────────────
+
+const DOMAIN_CHIP_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+	attack:  { bg: "var(--attack-bg, #FFF3E0)",  color: "var(--attack-fg, #E65100)",  border: "var(--attack-border, #E65100)" },
+	sigma:   { bg: "var(--sigma-bg, #E8F5E9)",   color: "var(--sigma-fg, #2E7D32)",   border: "var(--sigma-border, #2E7D32)" },
+	nvd:     { bg: "var(--nvd-bg, #FCE4EC)",     color: "var(--nvd-fg, #C62828)",     border: "var(--nvd-border, #C62828)" },
+	nist:    { bg: "var(--nist-bg, #E3F2FD)",    color: "var(--nist-fg, #1565C0)",    border: "var(--nist-border, #1565C0)" },
+	custom:  { bg: "var(--bg-paper-alt)",        color: "var(--info-slate)",           border: "var(--border-black)" },
+};
+
 // ─── Inline citation chip ─────────────────────────────────────────────────────
 
-function CitationChip({ filePath, score }: { filePath: string; score: number }) {
-	// Extract readable label from filePath e.g. "attack://technique/T1059.001" → "T1059.001"
+function CitationChip({
+	filePath,
+	score,
+	onClick,
+}: {
+	filePath: string;
+	score: number;
+	onClick?: () => void;
+}) {
+	// Parse domain prefix from filePath e.g. "attack://technique/T1059.001"
+	const domainMatch = filePath.match(/^([a-z]+):\/\//);
+	const domain = domainMatch?.[1] ?? "custom";
+	const colors = DOMAIN_CHIP_COLORS[domain] ?? DOMAIN_CHIP_COLORS.custom;
 	const label = filePath.split("/").pop() ?? filePath;
 	return (
 		<span
@@ -211,24 +192,162 @@ function CitationChip({ filePath, score }: { filePath: string; score: number }) 
 				fontFamily: "var(--font-mono)",
 				fontSize: "10px",
 				fontWeight: 600,
-				background: "var(--bg-paper-alt)",
-				border: "1.5px solid var(--border-black)",
+				background: colors.bg,
+				border: `1.5px solid ${colors.border}`,
 				borderRadius: 2,
-				color: "var(--info-slate)",
-				cursor: "default",
+				color: colors.color,
+				cursor: onClick ? "pointer" : "default",
 				letterSpacing: "0.04em",
 				textTransform: "uppercase",
 			}}
 			title={`${filePath} (score: ${score.toFixed(2)})`}
+			onClick={onClick}
 		>
 			↑ {label}
 		</span>
 	);
 }
 
+// ─── Mode indicator component ─────────────────────────────────────────────────
+
+function ModeIndicator({
+	activeMode,
+	modeOverride,
+	isAuto,
+	open,
+	onToggle,
+	onSelect,
+}: {
+	activeMode: SecurityMode;
+	modeOverride: SecurityMode | null;
+	isAuto: boolean;
+	open: boolean;
+	onToggle: () => void;
+	onSelect: (mode: SecurityMode | null) => void;
+}) {
+	const meta = MODE_META[activeMode];
+	return (
+		<div style={{ position: "relative", display: "inline-block" }}>
+			<button
+				onClick={onToggle}
+				style={{
+					display: "inline-flex",
+					alignItems: "center",
+					gap: 6,
+					padding: "3px 10px",
+					fontFamily: "var(--font-mono)",
+					fontSize: "10px",
+					fontWeight: 700,
+					letterSpacing: "0.06em",
+					textTransform: "uppercase",
+					background: "var(--bg-paper-alt)",
+					border: "1.5px solid var(--border-black)",
+					borderRadius: 2,
+					cursor: "pointer",
+					color: "var(--ink-medium)",
+				}}
+			>
+				<span style={{ color: "var(--ink-light)" }}>{isAuto ? "[auto]" : "[manual]"}</span>
+				<span>Mode:</span>
+				<span className={meta.tagClass} style={{
+					fontFamily: "var(--font-mono)",
+					fontSize: "10px",
+					fontWeight: 700,
+					color: "inherit",
+				}}>
+					{meta.shortLabel}
+				</span>
+				<span style={{ fontSize: "8px" }}>▾</span>
+			</button>
+
+			{open && (
+				<div
+					style={{
+						position: "absolute",
+						bottom: "calc(100% + 6px)",
+						left: 0,
+						background: "var(--bg-paper)",
+						border: "2px solid var(--border-black)",
+						boxShadow: "var(--shadow-layer-2)",
+						zIndex: 50,
+						minWidth: 200,
+					}}
+				>
+					<div
+						style={{
+							padding: "4px 10px",
+							fontFamily: "var(--font-mono)",
+							fontSize: "9px",
+							fontWeight: 700,
+							textTransform: "uppercase",
+							letterSpacing: "0.1em",
+							color: "var(--ink-light)",
+							borderBottom: "1px solid var(--border-black)",
+						}}
+					>
+						Analyst Mode
+					</div>
+					{/* Auto option */}
+					<button
+						onClick={() => { onSelect(null); onToggle(); }}
+						style={{
+							display: "block",
+							width: "100%",
+							textAlign: "left",
+							padding: "6px 10px",
+							fontFamily: "var(--font-mono)",
+							fontSize: "10px",
+							fontWeight: modeOverride === null ? 700 : 400,
+							background: modeOverride === null ? "var(--bg-paper-alt)" : "transparent",
+							border: "none",
+							cursor: "pointer",
+							color: "var(--ink-black)",
+							letterSpacing: "0.04em",
+						}}
+					>
+						Auto (detect from query)
+					</button>
+					{ALL_MODES.map((m) => (
+						<button
+							key={m}
+							onClick={() => { onSelect(m); onToggle(); }}
+							style={{
+								display: "block",
+								width: "100%",
+								textAlign: "left",
+								padding: "6px 10px",
+								fontFamily: "var(--font-mono)",
+								fontSize: "10px",
+								fontWeight: modeOverride === m ? 700 : 400,
+								background: modeOverride === m ? "var(--bg-paper-alt)" : "transparent",
+								border: "none",
+								cursor: "pointer",
+								color: "var(--ink-black)",
+								letterSpacing: "0.04em",
+							}}
+						>
+							{MODE_META[m].label}
+						</button>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
 // ─── Inline message bubble ────────────────────────────────────────────────────
 
-function MessageBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
+function MessageBubble({
+	msg,
+	isLast,
+	usedMode,
+	onOpenContext,
+}: {
+	msg: Message;
+	isLast: boolean;
+	usedMode?: SecurityMode;
+	onOpenContext?: () => void;
+}) {
 	const isUser = msg.role === "user";
 	const isThinking = isLast && !isUser && msg.content === "";
 
@@ -241,19 +360,37 @@ function MessageBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
 				gap: 6,
 			}}
 		>
-			{/* Role label */}
-			<span
-				style={{
-					fontFamily: "var(--font-mono)",
-					fontSize: "10px",
-					fontWeight: 700,
-					textTransform: "uppercase",
-					letterSpacing: "0.08em",
-					color: "var(--ink-light)",
-				}}
-			>
-				{isUser ? "you" : "✦ secask"}
-			</span>
+			{/* Role label + mode tag for assistant */}
+			<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+				<span
+					style={{
+						fontFamily: "var(--font-mono)",
+						fontSize: "10px",
+						fontWeight: 700,
+						textTransform: "uppercase",
+						letterSpacing: "0.08em",
+						color: "var(--ink-light)",
+					}}
+				>
+					{isUser ? "you" : "✦ secask"}
+				</span>
+				{!isUser && usedMode && (
+					<span style={{
+						fontFamily: "var(--font-mono)",
+						fontSize: "9px",
+						fontWeight: 600,
+						letterSpacing: "0.06em",
+						textTransform: "uppercase",
+						color: "var(--ink-light)",
+						padding: "1px 5px",
+						background: "var(--bg-paper-alt)",
+						border: "1px solid var(--border-black)",
+						borderRadius: 2,
+					}}>
+						Used: {MODE_META[usedMode].shortLabel}
+					</span>
+				)}
+			</div>
 
 			{/* Bubble */}
 			<div
@@ -288,7 +425,12 @@ function MessageBubble({ msg, isLast }: { msg: Message; isLast: boolean }) {
 			{msg.citations && msg.citations.length > 0 && (
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: "80%" }}>
 					{msg.citations.slice(0, 6).map((c, i) => (
-						<CitationChip key={i} filePath={c.filePath} score={c.score} />
+						<CitationChip
+							key={i}
+							filePath={c.filePath}
+							score={c.score}
+							onClick={onOpenContext}
+						/>
 					))}
 				</div>
 			)}
@@ -331,6 +473,12 @@ export default function SecurityDomainPage({
 	const [queryExpansionEnabled, setQueryExpansionEnabled] = useState(
 		() => getLLMConfig().provider !== "mlc"
 	);
+
+	// Mode state
+	const [detectedMode, setDetectedMode] = useState<SecurityMode>("cross-domain");
+	const [modeOverride, setModeOverride] = useState<SecurityMode | null>(null);
+	const [modeMenuOpen, setModeMenuOpen] = useState(false);
+	const activeMode = modeOverride ?? detectedMode;
 
 	const storeRef = useRef(new VectorStore());
 	const messagesRef = useRef<Message[]>([]);
@@ -655,10 +803,10 @@ export default function SecurityDomainPage({
 			const isLocalLLM = config.provider === "mlc";
 			const limits = defaultLimitsForProvider(config.provider);
 
-			// Query expansion
+			// Security query expansion
 			const queryVariants = !isLocalLLM && queryExpansionEnabled
-				? await generateQueryVariants(rawInput, messagesRef.current, "")
-				: expandQuery(buildContextualQuery(rawInput, messagesRef.current));
+				? await generateSecurityQueryVariants(rawInput, messagesRef.current)
+				: expandSecurityQuery(buildContextualQuery(rawInput, messagesRef.current));
 
 			setMessages((prev) =>
 				prev.map((m) =>
@@ -690,6 +838,41 @@ export default function SecurityDomainPage({
 			}
 
 			recordSearch(performance.now() - searchStart);
+
+			// Mode detection
+			const newMode = modeOverride ?? selectMode(rawInput) ?? DOMAIN_DEFAULT_MODE[domain] ?? "cross-domain";
+			setDetectedMode(modeOverride ? detectedMode : newMode);
+
+			// Cross-domain expansion: parse relationship hints from chunk content
+			{
+				const crossTerms: string[] = [];
+				for (const r of results.slice(0, 6)) {
+					const text = r.chunk.code;
+					// Parse ATT&CK technique refs from Sigma/any chunk
+					const techniqueMatches = text.match(/T\d{4}(?:\.\d{3})?/g) ?? [];
+					for (const t of techniqueMatches.slice(0, 3)) crossTerms.push(t);
+					// Parse ATT&CK Tags in Sigma chunks
+					const attackTagMatches = text.match(/attack\.t\d{4}(?:\.\d{3})?/gi) ?? [];
+					for (const t of attackTagMatches.slice(0, 3)) crossTerms.push(t.replace(/^attack\./i, "").toUpperCase());
+					// Parse Related Controls in NIST chunks
+					const controlMatches = text.match(/[A-Z]{2}-\d+(?:\(\d+\))?/g) ?? [];
+					for (const c of controlMatches.slice(0, 3)) crossTerms.push(c);
+				}
+				const uniqueCrossTerms = [...new Set(crossTerms)].slice(0, 5);
+				if (uniqueCrossTerms.length > 0) {
+					const crossResults = await multiPathHybridSearch(
+						storeRef.current, uniqueCrossTerms, { limit: 3 }
+					);
+					const merged = new Map<string, (typeof results)[0]>();
+					for (const r of results) merged.set(r.chunk.id, r);
+					for (const r of crossResults) {
+						if (!merged.has(r.chunk.id)) {
+							merged.set(r.chunk.id, { ...r, score: r.score * 0.5 });
+						}
+					}
+					results = [...merged.values()].sort((a, b) => b.score - a.score).slice(0, 15);
+				}
+			}
 
 			// Safety scan
 			const evidenceTerms = extractEvidenceTerms(rawInput);
@@ -757,10 +940,9 @@ export default function SecurityDomainPage({
 				return;
 			}
 
-			// Build system prompt
-			const domainPrompt =
-				SECURITY_SYSTEM_PROMPTS[domain] ?? SECURITY_SYSTEM_PROMPTS.custom;
-			const systemPrompt = `${domainPrompt}\n\nSecurity knowledge context:\n${safeCtx.safeContext}`;
+			// Build system prompt using active analyst mode
+			const modePrompt = SECURITY_MODE_PROMPTS[activeMode];
+			const systemPrompt = `${modePrompt}\n\nSecurity knowledge context:\n${safeCtx.safeContext}`;
 
 			const chatMessages = buildChatRequestMessages({
 				provider: config.provider,
@@ -835,7 +1017,7 @@ export default function SecurityDomainPage({
 			isGeneratingRef.current = false;
 			setIsGenerating(false);
 		}
-	}, [input, isIndexed, queryExpansionEnabled, domain, llmStatus]);
+	}, [input, isIndexed, queryExpansionEnabled, domain, llmStatus, modeOverride, detectedMode, activeMode]);
 
 	// ─── Computed values ──────────────────────────────────────────────────
 
@@ -1258,6 +1440,8 @@ export default function SecurityDomainPage({
 									key={msg.id}
 									msg={msg}
 									isLast={idx === messages.length - 1}
+									usedMode={msg.role === "assistant" ? activeMode : undefined}
+									onOpenContext={() => setShowContext(true)}
 								/>
 							))}
 							<div ref={chatEndRef} />
@@ -1266,56 +1450,75 @@ export default function SecurityDomainPage({
 
 					{/* Input bar */}
 					{isIndexed && (
-						<form
-							onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+						<div
 							style={{
-								padding: "14px 20px",
 								borderTop: "2.5px solid var(--border-black)",
 								background: "var(--bg-cream)",
-								display: "flex",
-								gap: 10,
-								alignItems: "flex-end",
 								flexShrink: 0,
 							}}
 						>
-							<textarea
-								ref={textareaRef}
-								value={input}
-								onChange={(e) => setInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" && !e.shiftKey) {
-										e.preventDefault();
-										handleSend();
-									}
-								}}
-								placeholder={`Ask anything about ${meta.label}…`}
-								disabled={isGenerating}
-								rows={1}
+							<form
+								onSubmit={(e) => { e.preventDefault(); handleSend(); }}
 								style={{
-									flex: 1,
-									padding: "10px 14px",
-									background: "var(--bg-paper)",
-									color: "var(--ink-black)",
-									border: "2.5px solid var(--border-black)",
-									outline: "none",
-									resize: "none",
-									fontFamily: "var(--font-sans)",
-									fontSize: "0.9rem",
-									lineHeight: 1.5,
-									minHeight: 42,
-									maxHeight: 160,
-									boxSizing: "border-box",
+									padding: "14px 20px 8px",
+									display: "flex",
+									gap: 10,
+									alignItems: "flex-end",
 								}}
-							/>
-							<button
-								type="submit"
-								disabled={isGenerating || !input.trim()}
-								className="btn btn-primary"
-								style={{ flexShrink: 0, padding: "10px 20px" }}
 							>
-								{isGenerating ? "…" : "Send"}
-							</button>
-						</form>
+								<textarea
+									ref={textareaRef}
+									value={input}
+									onChange={(e) => setInput(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" && !e.shiftKey) {
+											e.preventDefault();
+											handleSend();
+										}
+									}}
+									placeholder={`Ask anything about ${meta.label}…`}
+									disabled={isGenerating}
+									rows={1}
+									style={{
+										flex: 1,
+										padding: "10px 14px",
+										background: "var(--bg-paper)",
+										color: "var(--ink-black)",
+										border: "2.5px solid var(--border-black)",
+										outline: "none",
+										resize: "none",
+										fontFamily: "var(--font-sans)",
+										fontSize: "0.9rem",
+										lineHeight: 1.5,
+										minHeight: 42,
+										maxHeight: 160,
+										boxSizing: "border-box",
+									}}
+								/>
+								<button
+									type="submit"
+									disabled={isGenerating || !input.trim()}
+									className="btn btn-primary"
+									style={{ flexShrink: 0, padding: "10px 20px" }}
+								>
+									{isGenerating ? "…" : "Send"}
+								</button>
+							</form>
+							{/* Mode indicator row */}
+							<div style={{ padding: "0 20px 10px", display: "flex", alignItems: "center" }}>
+								<ModeIndicator
+									activeMode={activeMode}
+									modeOverride={modeOverride}
+									isAuto={modeOverride === null}
+									open={modeMenuOpen}
+									onToggle={() => setModeMenuOpen((v) => !v)}
+									onSelect={(m) => {
+										setModeOverride(m);
+										setModeMenuOpen(false);
+									}}
+								/>
+							</div>
+						</div>
 					)}
 				</div>
 
