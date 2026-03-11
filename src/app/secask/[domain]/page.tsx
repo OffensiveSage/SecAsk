@@ -22,6 +22,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { QuickActions } from "@/components/chat/QuickActions";
 import ReactMarkdown from "react-markdown";
 import { VectorStore } from "@/lib/vectorStore";
 import { multiPathHybridSearch } from "@/lib/search";
@@ -90,11 +91,14 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 		tag: "ATT&CK",
 		tagClass: "tag-attack",
 		suggestions: [
-			"What ATT&CK techniques use PowerShell?",
-			"Show all lateral movement techniques",
-			"Which groups use T1059.001?",
-			"What mitigations cover credential dumping?",
-			"List techniques for persistence on Windows",
+			"What techniques use PowerShell?",
+			"Describe APT29 tactics and tools",
+			"What mitigations exist for credential dumping?",
+			"Map the ransomware kill chain",
+			"Which groups target financial sector?",
+			"What sub-techniques fall under T1059?",
+			"List persistence techniques on Windows",
+			"Which techniques are used by Lazarus Group?",
 		],
 	},
 	sigma: {
@@ -102,11 +106,14 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 		tag: "SIGMA",
 		tagClass: "tag-sigma",
 		suggestions: [
-			"Show Sigma rules for lateral movement",
-			"What detection rules cover PowerShell execution?",
-			"Find high-severity rules for Windows",
-			"Do any rules detect Cobalt Strike?",
+			"Show detection rules for lateral movement",
+			"What rules cover privilege escalation?",
+			"Find rules for suspicious PowerShell execution",
+			"What log sources are needed for T1053 detection?",
+			"Show critical severity rules",
 			"Which rules have ATT&CK T1078 coverage?",
+			"Find rules that detect Cobalt Strike",
+			"Show rules targeting Windows event log manipulation",
 		],
 	},
 	nvd: {
@@ -114,11 +121,14 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 		tag: "NVD",
 		tagClass: "tag-nvd",
 		suggestions: [
-			"What critical CVEs affect Apache?",
-			"Show recent authentication bypass vulnerabilities",
-			"Find CVEs with CVSS 9+ scores",
-			"What CWEs are most common in indexed CVEs?",
-			"List CVEs affecting Microsoft Exchange",
+			"Show critical severity CVEs",
+			"Find RCE vulnerabilities in Apache",
+			"What CVEs have public exploits?",
+			"List authentication bypass vulnerabilities",
+			"Show recent high-severity CVEs",
+			"Find CVEs with CVSS score above 9",
+			"What CWEs appear most frequently?",
+			"Show vulnerabilities affecting Linux kernel",
 		],
 	},
 	nist: {
@@ -126,11 +136,14 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 		tag: "NIST",
 		tagClass: "tag-compliance",
 		suggestions: [
-			"Map NIST AC-2 account management controls",
-			"What controls address multi-factor authentication?",
-			"Show HIGH baseline access control requirements",
-			"Which controls relate to audit and accountability?",
-			"What does control IA-5 require?",
+			"What controls address access management?",
+			"Map AC-2 account management requirements",
+			"What controls are in the HIGH baseline?",
+			"Show audit logging requirements",
+			"Find controls for incident response",
+			"What does IA-5 require for authenticators?",
+			"Which controls cover supply chain risk?",
+			"Show controls related to multi-factor authentication",
 		],
 	},
 	custom: {
@@ -138,14 +151,27 @@ const DOMAIN_META: Record<string, { label: string; tag: string; tagClass: string
 		tag: "CUSTOM",
 		tagClass: "tag-custom",
 		suggestions: [
-			"Summarize the key findings in this document",
-			"What are the main security risks mentioned?",
-			"List all remediation steps described",
-			"What policies or procedures are covered?",
-			"Find all mentions of critical or high severity",
+			"Summarize the key findings",
+			"What are the main recommendations?",
+			"Find references to incident response",
+			"What policies are covered?",
+			"List all action items",
+			"What are the highest-priority risks?",
+			"What tools or technologies are mentioned?",
+			"Find any compliance or regulatory references",
 		],
 	},
 };
+
+/** Fisher-Yates shuffle — returns a new array */
+function shuffleArray<T>(arr: T[]): T[] {
+	const out = [...arr];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	return out;
+}
 
 // Connector progress → IndexProgress shape cast
 function toIndexProgress(p: ConnectorProgress): IndexProgress {
@@ -487,6 +513,7 @@ export default function SecurityDomainPage({
 	const [isMobile, setIsMobile] = useState(false);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [indexJustCompleted, setIndexJustCompleted] = useState(false);
+	const [displayedSuggestions, setDisplayedSuggestions] = useState<string[]>([]);
 
 	// Mode state
 	const [detectedMode, setDetectedMode] = useState<SecurityMode>("cross-domain");
@@ -700,6 +727,9 @@ export default function SecurityDomainPage({
 				setIsIndexed(true);
 				setIndexJustCompleted(true);
 				setTimeout(() => setIndexJustCompleted(false), 1200);
+				// Pick 5 shuffled suggestions from the domain pool
+				const domainSuggestions = DOMAIN_META[domain]?.suggestions ?? [];
+				setDisplayedSuggestions(shuffleArray(domainSuggestions).slice(0, 5));
 
 				initLLM((msg) => {
 					if (aborted) return;
@@ -1505,7 +1535,7 @@ export default function SecurityDomainPage({
 											maxWidth: 560,
 										}}
 									>
-										{meta.suggestions.map((s) => (
+										{displayedSuggestions.map((s) => (
 											<button
 												key={s}
 												className="query-chip"
@@ -1532,6 +1562,13 @@ export default function SecurityDomainPage({
 						</div>
 					)}
 
+					{/* Quick actions */}
+					{isIndexed && domain && (
+						<QuickActions
+							source={domain as "attack" | "sigma" | "nvd" | "nist" | "custom"}
+							onSend={(prompt) => { void handleSend(prompt); }}
+						/>
+					)}
 					{/* Input bar */}
 					{isIndexed && (
 						<div

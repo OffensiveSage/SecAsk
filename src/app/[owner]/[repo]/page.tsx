@@ -27,6 +27,7 @@ import {
 } from "@/lib/citationUtils";
 import { shouldInjectBaselineContext, isFactSeekingQuery } from "@/lib/queryUtils";
 import { deriveRepoSuggestions } from "@/lib/repoSuggestions";
+import { QuickActions, checkNvdIndexed } from "@/components/chat/QuickActions";
 
 import { RepoHeader } from "@/components/chat/RepoHeader";
 import { DiagramModal } from "@/components/diagram/DiagramModal";
@@ -97,6 +98,7 @@ export default function RepoPage({
 	const [fileBrowserTab, setFileBrowserTab] = useState<"tree" | "chunks">("tree");
 	const [showDiagram, setShowDiagram] = useState(false);
 	const [repoSuggestions, setRepoSuggestions] = useState<string[]>([]);
+	const [isNvdIndexed, setIsNvdIndexed] = useState(false);
 
 	const completedWhileHiddenRef = useRef(false);
 	const indexStartTimeRef = useRef<number | null>(null);
@@ -117,6 +119,11 @@ export default function RepoPage({
 		check();
 		window.addEventListener("resize", check);
 		return () => window.removeEventListener("resize", check);
+	}, []);
+
+	// Check if NVD is indexed (for the "Check Dependencies" quick action)
+	useEffect(() => {
+		checkNvdIndexed().then(setIsNvdIndexed);
 	}, []);
 
 	useEffect(() => {
@@ -372,6 +379,7 @@ export default function RepoPage({
 				safeSetState(setIndexedSha, result.sha);
 				safeSetState(setRepoStale, false);
 				staleNoticeShownRef.current = false;
+				safeSetState(setRepoSuggestions, deriveRepoSuggestions(storeRef.current.getAll()));
 
 				initLLM((msg) => {
 					if (aborted) return;
@@ -1127,6 +1135,7 @@ ${context}`,
 									owner={owner}
 									repo={repo}
 									onSelectSuggestion={(suggestion) => { void handleSend(suggestion); }}
+									suggestions={repoSuggestions}
 								/>
 							)}
 
@@ -1161,6 +1170,13 @@ ${context}`,
 						/>
 					)}
 
+					{isIndexed && (
+						<QuickActions
+							source="repo"
+							onSend={(prompt) => { void handleSend(prompt); }}
+							isNvdIndexed={isNvdIndexed}
+						/>
+					)}
 					<ChatInput
 						input={input}
 						isIndexed={isIndexed}
