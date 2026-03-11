@@ -2,7 +2,6 @@
 
 import { ArchitectureDiagram } from "@/components/ArchitectureDiagram";
 import { ModelSettings } from "@/components/ModelSettings";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   detectWebGPUAvailability,
   formatWebGPUReason,
@@ -17,6 +16,12 @@ const EXAMPLE_REPOSITORIES = [
   { owner: "huggingface", repo: "smolagents" },
   { owner: "FloareDor", repo: "gitask" },
 ];
+
+// SecAsk Papercut Layers design tokens (inline style helpers)
+const SHADOW_1 = "3px 3px 0px #1A1A1A";
+const SHADOW_2 = "5px 5px 0px #1A1A1A";
+const INK = "#1A1A1A";
+const SLATE = "#5B7FA5";
 
 interface SavedChatEntry {
   id: string;
@@ -330,31 +335,34 @@ export default function LandingPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "20px 40px",
-        borderBottom: "1px solid var(--page-border)",
-        background: "var(--page-bg)",
+        padding: "16px 40px",
+        borderBottom: "2.5px solid var(--page-border)",
+        background: "var(--bg-paper)",
         position: "sticky",
         top: 0,
         zIndex: 40,
+        boxShadow: SHADOW_1,
       }}>
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "1.1rem", letterSpacing: "-0.02em", color: "var(--page-text)" }}>
-          gitask
+        <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "1.25rem", letterSpacing: "0.02em", color: "var(--page-text)", textTransform: "uppercase" }}>
+          SecAsk
         </span>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <ModelSettings />
-          <ThemeToggle />
           <a
             href="https://github.com/FloareDor/gitask"
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              fontSize: "13px",
-              fontWeight: 600,
+              fontSize: "12px",
+              fontWeight: 700,
               color: "var(--page-text)",
               textDecoration: "none",
-              border: "1px solid var(--page-border)",
+              border: "2.5px solid var(--page-border)",
               padding: "6px 14px",
               fontFamily: "var(--font-sans)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              boxShadow: "var(--shadow-subtle)",
             }}
           >
             GitHub ↗
@@ -378,63 +386,68 @@ export default function LandingPage() {
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          padding: "5px 14px",
-          border: "1px solid var(--page-border)",
+          padding: "6px 16px",
+          border: "2px solid var(--page-border)",
           fontFamily: "var(--font-mono)",
           fontSize: "11px",
           fontWeight: 600,
-          letterSpacing: "0.06em",
+          letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: "var(--page-text-dim)",
-          marginBottom: 28,
-          background: "var(--page-surface)",
+          color: "var(--page-text-muted)",
+          marginBottom: 32,
+          background: "var(--bg-paper)",
+          boxShadow: "var(--shadow-subtle)",
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} className="pulse" />
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#6B8F71", display: "inline-block" }} className="pulse" />
           Browser-native · No server · Keys stay local
         </div>
 
         <h1 style={{
           fontFamily: "var(--font-display)",
-          fontSize: "clamp(3rem, 8vw, 6.5rem)",
-          fontWeight: 800,
-          lineHeight: 1.0,
-          letterSpacing: "-0.04em",
+          fontSize: "clamp(2.5rem, 7vw, 5.5rem)",
+          fontWeight: 900,
+          lineHeight: 1.05,
+          letterSpacing: "0.01em",
           color: "var(--page-text)",
           marginBottom: 24,
           maxWidth: 900,
+          textTransform: "uppercase",
         }}>
-          Ask any GitHub<br />repo anything.
+          Ask your<br />security stack<br />anything.
         </h1>
 
         <p style={{
-          fontSize: "clamp(1rem, 2vw, 1.2rem)",
+          fontSize: "clamp(1rem, 2vw, 1.15rem)",
           color: "var(--page-text-dim)",
-          lineHeight: 1.6,
-          maxWidth: 540,
+          lineHeight: 1.65,
+          maxWidth: 560,
           marginBottom: 40,
+          fontFamily: "var(--font-sans)",
         }}>
-          Index any repo in your browser. Chat with its code using your own API key.
-          Embeddings, retrieval, and storage — all on-device.
+          Index ATT&CK, Sigma rules, NVD, NIST, and your GitHub repos.
+          Chat across all sources simultaneously. Embeddings, retrieval,
+          and storage — all on-device.
         </p>
 
         {/* WebGPU warning — only when !gpuSupported */}
         {!gpuSupported && (
           <div style={{
             width: "100%",
-            maxWidth: 600,
+            maxWidth: 620,
             textAlign: "left",
-            border: "1px solid #92400e",
-            background: "#1c1408",
+            border: "2.5px solid #E8943A",
+            background: "#FFF3E0",
             padding: "14px 18px",
             marginBottom: 24,
             display: "flex",
             flexDirection: "column",
             gap: 8,
+            boxShadow: SHADOW_1,
           }}>
-            <strong style={{ fontSize: "13px", color: "#d97706", fontFamily: "var(--font-display)" }}>
+            <strong style={{ fontSize: "13px", color: "#E8943A", fontFamily: "var(--font-display)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Local WebGPU inference unavailable in this browser.
             </strong>
-            <p style={{ margin: 0, fontSize: "12px", color: "#a16207", lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: "12px", color: "#9B5E1A", lineHeight: 1.5, fontFamily: "var(--font-sans)" }}>
               Use Gemini or Groq instead — open settings and enter your API key.
               Local indexing still works on CPU, just slower.
               {gpuSupportReason !== "ok"
@@ -448,12 +461,14 @@ export default function LandingPage() {
                 alignSelf: "flex-start",
                 fontSize: "12px",
                 padding: "6px 12px",
-                border: "1px solid #92400e",
-                background: "transparent",
+                border: "2px solid #E8943A",
+                background: "#E8943A",
                 cursor: "pointer",
                 fontWeight: 700,
-                color: "#d97706",
+                color: "#FFFDF7",
                 fontFamily: "var(--font-sans)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
               }}
             >
               Open Settings
@@ -468,8 +483,8 @@ export default function LandingPage() {
             style={{
               display: "flex",
               width: "100%",
-              border: "1px solid var(--page-border)",
-              boxShadow: "var(--page-shadow)",
+              border: "2.5px solid var(--page-border)",
+              boxShadow: SHADOW_1,
             }}
           >
             <input
@@ -485,7 +500,7 @@ export default function LandingPage() {
                 fontSize: "1rem",
                 border: "none",
                 outline: "none",
-                background: "var(--page-surface)",
+                background: "var(--bg-paper)",
                 color: "var(--page-text)",
               }}
             />
@@ -494,31 +509,52 @@ export default function LandingPage() {
               id="go-btn"
               style={{
                 padding: "16px 28px",
-                background: "#0a0a0a",
-                color: "#f5f5f0",
+                background: INK,
+                color: "#FFFDF7",
                 border: "none",
+                borderLeft: `2.5px solid ${INK}`,
                 cursor: "pointer",
                 fontWeight: 700,
-                fontSize: "1rem",
+                fontSize: "0.875rem",
                 fontFamily: "var(--font-display)",
                 whiteSpace: "nowrap",
-                transition: "background 0.15s",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                transition: "transform 0.1s ease, box-shadow 0.1s ease",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#16a34a"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#0a0a0a"; }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "translate(-1px,-1px)";
+                el.style.boxShadow = SHADOW_2;
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "";
+                el.style.boxShadow = "";
+              }}
+              onMouseDown={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "translate(2px,2px)";
+                el.style.boxShadow = "none";
+              }}
+              onMouseUp={(e) => {
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "";
+                el.style.boxShadow = "";
+              }}
             >
               Explore Repo →
             </button>
           </form>
           {error && (
             <p style={{
-              color: "#f87171",
+              color: "#D94F3B",
               fontSize: "13px",
               textAlign: "left",
               fontFamily: "var(--font-mono)",
               padding: "8px 12px",
-              background: "#1c0a0a",
-              border: "1px solid #7f1d1d",
+              background: "#FDF0EE",
+              border: "2px solid #D94F3B",
             }}>
               {error}
             </p>
@@ -536,7 +572,7 @@ export default function LandingPage() {
               display: "inline-flex",
               alignItems: "stretch",
               textDecoration: "none",
-              border: "2px solid var(--page-border)",
+              border: "2.5px solid var(--page-border)",
               fontFamily: "var(--font-sans)",
               overflow: "hidden",
             }}
@@ -548,18 +584,17 @@ export default function LandingPage() {
               gap: 8,
               padding: "8px 14px",
               fontSize: "13px",
-              fontWeight: 600,
+              fontWeight: 700,
               color: "var(--page-text)",
-              background: "var(--page-surface)",
+              background: "var(--bg-paper)",
             }}>
-              {/* GitHub mark SVG */}
               <svg width="16" height="16" viewBox="0 0 98 96" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" clipRule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"/>
               </svg>
               Star on GitHub
             </span>
             {/* Divider */}
-            <span style={{ width: 1, background: "var(--page-border)", flexShrink: 0 }} aria-hidden="true" />
+            <span style={{ width: 2, background: "var(--page-border)", flexShrink: 0 }} aria-hidden="true" />
             {/* Right: star count */}
             <span style={{
               display: "inline-flex",
@@ -568,8 +603,8 @@ export default function LandingPage() {
               padding: "8px 12px",
               fontSize: "13px",
               fontWeight: 700,
-              color: "var(--accent)",
-              background: "var(--page-surface)",
+              color: SLATE,
+              background: "var(--bg-paper)",
               fontFamily: "var(--font-mono)",
             }}>
               ★ {starCount !== null ? (starCount >= 1000 ? `${(starCount / 1000).toFixed(1)}k` : starCount) : "—"}
@@ -580,7 +615,7 @@ export default function LandingPage() {
 
       {/* RECENT CHATS — only if savedChats.length > 0 */}
       {savedChats.length > 0 && (
-        <section style={{ padding: "40px 24px", background: "var(--page-bg)", borderTop: "1px solid var(--page-border)" }}>
+        <section style={{ padding: "40px 24px", background: "var(--page-bg)", borderTop: "2.5px solid var(--page-border)" }}>
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--page-text-muted)" }}>
@@ -588,7 +623,7 @@ export default function LandingPage() {
               </p>
               <button
                 onClick={handleDeleteAllSavedChats}
-                style={{ fontSize: "11px", color: "var(--page-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                style={{ fontSize: "11px", color: "var(--page-text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", fontFamily: "var(--font-mono)" }}
               >
                 Clear all
               </button>
@@ -601,29 +636,27 @@ export default function LandingPage() {
                   tabIndex={0}
                   onClick={() => handleOpenSavedChat(chat)}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleOpenSavedChat(chat); }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "var(--page-surface)", border: "1px solid var(--page-border)", cursor: "pointer", transition: "transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease" }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "var(--bg-paper)", border: "2.5px solid var(--page-border)", cursor: "pointer", transition: "transform 0.1s ease, box-shadow 0.1s ease", boxShadow: "var(--shadow-subtle)" }}
                   onMouseEnter={(e) => {
-                    const el = e.currentTarget;
-                    el.style.transform = "translate(-3px, -3px)";
-                    el.style.boxShadow = "3px 3px 0 #16a34a";
-                    el.style.borderColor = "#16a34a";
+                    const el = e.currentTarget as HTMLDivElement;
+                    el.style.transform = "translate(-2px, -2px)";
+                    el.style.boxShadow = SHADOW_1;
                   }}
                   onMouseLeave={(e) => {
-                    const el = e.currentTarget;
+                    const el = e.currentTarget as HTMLDivElement;
                     el.style.transform = "";
-                    el.style.boxShadow = "";
-                    el.style.borderColor = "var(--page-border)";
+                    el.style.boxShadow = "var(--shadow-subtle)";
                   }}
                 >
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem", fontWeight: 600, color: "var(--page-text)", flexShrink: 0 }}>
                     {chat.owner}/{chat.repo}
                   </span>
-                  <span style={{ fontSize: "0.75rem", color: "var(--page-text-dim)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "0.75rem", color: "var(--page-text-dim)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-sans)" }}>
                     {chat.label} · {chat.messageCount} msg{chat.messageCount === 1 ? "" : "s"}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteSavedChat(chat); }}
-                    style={{ fontSize: "11px", color: "var(--page-text-muted)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
+                    style={{ fontSize: "11px", color: "var(--page-text-muted)", background: "none", border: "none", cursor: "pointer", flexShrink: 0, fontFamily: "var(--font-mono)" }}
                   >
                     Delete
                   </button>
@@ -635,10 +668,10 @@ export default function LandingPage() {
       )}
 
       {/* EXAMPLE REPOS */}
-      <section style={{ padding: "60px 24px", background: "var(--page-bg)", borderTop: "1px solid var(--page-border)" }}>
+      <section style={{ padding: "60px 24px", background: "var(--page-bg)", borderTop: "2.5px solid var(--page-border)" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--page-text-muted)", marginBottom: 24 }}>
-            Try an example
+            Try an example repo
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
             {EXAMPLE_REPOSITORIES.map(({ owner, repo }) => (
@@ -651,21 +684,29 @@ export default function LandingPage() {
                   alignItems: "flex-start",
                   gap: 10,
                   padding: "20px 24px",
-                  background: "var(--page-surface)",
-                  border: "1px solid var(--page-border)",
-                  boxShadow: "var(--page-shadow-sm)",
+                  background: "var(--bg-paper)",
+                  border: "2.5px solid var(--page-border)",
+                  boxShadow: "var(--shadow-subtle)",
                   cursor: "pointer",
                   textAlign: "left",
                   fontFamily: "inherit",
                   transition: "transform 0.1s, box-shadow 0.1s",
                 }}
-                onMouseEnter={(e) => { const el = e.currentTarget; el.style.transform = "translate(-2px,-2px)"; el.style.boxShadow = "var(--page-shadow-hover)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget; el.style.transform = ""; el.style.boxShadow = "var(--page-shadow-sm)"; }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  el.style.transform = "translate(-2px,-2px)";
+                  el.style.boxShadow = SHADOW_1;
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLButtonElement;
+                  el.style.transform = "";
+                  el.style.boxShadow = "var(--shadow-subtle)";
+                }}
               >
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem", fontWeight: 600, color: "var(--page-text)" }}>
-                  {owner}/<span style={{ color: "#16a34a" }}>{repo}</span>
+                  {owner}/<span style={{ color: SLATE }}>{repo}</span>
                 </span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#16a34a" }}>Explore →</span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: SLATE, fontFamily: "var(--font-sans)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Explore →</span>
               </button>
             ))}
           </div>
@@ -678,7 +719,7 @@ export default function LandingPage() {
         style={{
           padding: "80px 24px",
           background: "var(--page-bg)",
-          borderTop: "1px solid var(--page-border)",
+          borderTop: "2.5px solid var(--page-border)",
           opacity: isHowVisible ? 1 : 0,
           transform: isHowVisible ? "translateY(0)" : "translateY(20px)",
           transition: "opacity 0.5s ease, transform 0.5s ease",
@@ -688,26 +729,27 @@ export default function LandingPage() {
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--page-text-muted)", marginBottom: 16, textAlign: "center" }}>
             How it works
           </p>
-          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(1.5rem, 4vw, 2.5rem)", color: "var(--page-text)", textAlign: "center", marginBottom: 48, letterSpacing: "-0.03em" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "clamp(1.5rem, 4vw, 2.5rem)", color: "var(--page-text)", textAlign: "center", marginBottom: 48, textTransform: "uppercase", letterSpacing: "0.02em" }}>
             Under the Hood
           </h2>
 
           {/* Step cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 0, marginBottom: 64 }}>
             {[
-              { num: "01", title: "Paste a GitHub URL", desc: "Any public repo. Private repos with a token." },
-              { num: "02", title: "Index in your browser", desc: "AST chunking + embeddings. No server. Everything local." },
-              { num: "03", title: "Ask questions", desc: "Chat with your LLM of choice. Results cite real code." },
+              { num: "01", title: "Connect a source", desc: "Paste a GitHub URL, click a data source button, or upload a document." },
+              { num: "02", title: "Index in your browser", desc: "AST chunking + embeddings. No server. Everything local on-device." },
+              { num: "03", title: "Ask questions", desc: "Chat across all indexed sources simultaneously. Results cite real data." },
             ].map((step, i) => (
               <div key={step.num} style={{
                 padding: "32px 28px",
-                border: "1px solid var(--page-border)",
-                borderRight: i < 2 ? "none" : "1px solid var(--page-border)",
-                background: "var(--page-surface)",
+                border: "2.5px solid var(--page-border)",
+                borderRight: i < 2 ? "none" : "2.5px solid var(--page-border)",
+                background: "var(--bg-paper)",
+                boxShadow: i === 0 ? SHADOW_1 : "none",
               }}>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "2rem", fontWeight: 700, color: "var(--page-text-muted)", display: "block", marginBottom: 12 }}>{step.num}</span>
-                <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1rem", marginBottom: 8, color: "var(--page-text)" }}>{step.title}</h3>
-                <p style={{ fontSize: "0.85rem", color: "var(--page-text-dim)", lineHeight: 1.5 }}>{step.desc}</p>
+                <span style={{ fontFamily: "var(--font-display)", fontSize: "2.5rem", fontWeight: 900, color: "var(--page-text-muted)", display: "block", marginBottom: 12, letterSpacing: "0.02em" }}>{step.num}</span>
+                <h3 style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "1rem", marginBottom: 8, color: "var(--page-text)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{step.title}</h3>
+                <p style={{ fontSize: "0.875rem", color: "var(--page-text-dim)", lineHeight: 1.6, fontFamily: "var(--font-sans)" }}>{step.desc}</p>
               </div>
             ))}
           </div>
@@ -718,12 +760,12 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ padding: "24px 40px", background: "var(--page-bg)", borderTop: "1px solid var(--page-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "0.9rem", color: "var(--page-text-muted)" }}>gitask</span>
+      <footer style={{ padding: "24px 40px", background: "var(--bg-paper)", borderTop: "2.5px solid var(--page-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: "1rem", color: "var(--page-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>SecAsk</span>
         <div style={{ display: "flex", gap: 16 }}>
-          <a href="/ablation" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none" }}>Ablation</a>
-          <a href="/metrics" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none" }}>Metrics</a>
-          <a href="https://github.com/FloareDor/gitask" target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none" }}>GitHub</a>
+          <a href="/ablation" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none", fontFamily: "var(--font-mono)" }}>Ablation</a>
+          <a href="/metrics" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none", fontFamily: "var(--font-mono)" }}>Metrics</a>
+          <a href="https://github.com/FloareDor/gitask" target="_blank" rel="noopener noreferrer" style={{ fontSize: "12px", color: "var(--page-text-muted)", textDecoration: "none", fontFamily: "var(--font-mono)" }}>GitHub</a>
         </div>
       </footer>
     </div>

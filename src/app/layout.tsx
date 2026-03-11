@@ -8,9 +8,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "GitAsk: Ask any GitHub repo",
+  title: "SecAsk: Security Knowledge RAG",
   description:
-    "RAG in your browser. Index any GitHub repo and chat with it. WebGPU inference, AST chunking, hybrid search. No server. API keys encrypted locally.",
+    "Unified security knowledge platform. Index ATT&CK, Sigma, NVD, NIST, and your own docs. Browser-native RAG. No server. API keys encrypted locally.",
 };
 
 export default function RootLayout({
@@ -22,7 +22,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       {/* Prevent flash of wrong theme on load */}
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t!=='dark')document.documentElement.setAttribute('data-theme','light');}catch(e){}})()` }} />
+        {/* SecAsk always uses the Papercut Layers (warm cream) theme */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{document.documentElement.setAttribute('data-theme','light');}catch(e){}})()` }} />
       </head>
       <body suppressHydrationWarning>
         {children}
