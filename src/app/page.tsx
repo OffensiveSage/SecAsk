@@ -501,9 +501,9 @@ export default function LandingPage() {
               tagClass="tag-attack"
               tagLabel="ATT&CK"
               status="idle"
-              isComingSoon={true}
-              buttonLabel="Index ATT&CK"
-              onAction={() => showToast("ATT&CK indexing coming in Section 5")}
+              isComingSoon={false}
+              buttonLabel="Index ATT&CK →"
+              onAction={() => router.push("/secask/attack")}
               animationDelay={0.05}
             />
 
@@ -515,9 +515,9 @@ export default function LandingPage() {
               tagClass="tag-sigma"
               tagLabel="SIGMA"
               status="idle"
-              isComingSoon={true}
-              buttonLabel="Index Sigma Rules"
-              onAction={() => showToast("Sigma indexing coming in Section 5")}
+              isComingSoon={false}
+              buttonLabel="Index Sigma Rules →"
+              onAction={() => router.push("/secask/sigma")}
               animationDelay={0.1}
             />
 
@@ -529,9 +529,9 @@ export default function LandingPage() {
               tagClass="tag-nvd"
               tagLabel="NVD"
               status="idle"
-              isComingSoon={true}
-              buttonLabel="Index NVD"
-              onAction={() => showToast("NVD indexing coming in Section 5")}
+              isComingSoon={false}
+              buttonLabel="Index NVD →"
+              onAction={() => router.push("/secask/nvd")}
               animationDelay={0.15}
             />
 
@@ -543,9 +543,9 @@ export default function LandingPage() {
               tagClass="tag-compliance"
               tagLabel="NIST"
               status="idle"
-              isComingSoon={true}
-              buttonLabel="Index NIST"
-              onAction={() => showToast("NIST indexing coming in Section 5")}
+              isComingSoon={false}
+              buttonLabel="Index NIST →"
+              onAction={() => router.push("/secask/nist")}
               animationDelay={0.2}
             />
 
@@ -557,10 +557,10 @@ export default function LandingPage() {
               tagClass="tag-custom"
               tagLabel="CUSTOM"
               status="idle"
-              isComingSoon={true}
-              hasDropZone={true}
-              buttonLabel="Upload File"
-              onAction={() => showToast("File upload coming in Section 5")}
+              isComingSoon={false}
+              hasDropZone={false}
+              buttonLabel="Upload File →"
+              onAction={() => router.push("/secask/custom")}
               animationDelay={0.25}
             />
           </div>
@@ -641,15 +641,26 @@ export default function LandingPage() {
             <span>Try an Example</span>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {EXAMPLE_QUERIES.map((q) => (
-              <button
-                key={q}
-                className="query-chip"
-                onClick={() => showToast("Index a source first to try example queries")}
-              >
-                {q}
-              </button>
-            ))}
+            {EXAMPLE_QUERIES.map((q) => {
+              const domainForQuery = q.includes("ATT&CK") || q.includes("technique")
+                ? "attack"
+                : q.includes("Sigma") || q.includes("detection")
+                ? "sigma"
+                : q.includes("CVE")
+                ? "nvd"
+                : q.includes("NIST") || q.includes("control")
+                ? "nist"
+                : "attack";
+              return (
+                <button
+                  key={q}
+                  className="query-chip"
+                  onClick={() => router.push(`/secask/${domainForQuery}`)}
+                >
+                  {q}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
